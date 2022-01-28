@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anycable-rpc
+  #namespace: anycable
+  namespace: kajabi-products
+  annotations:
+    secret.reloader.stakater.com/reload: reloader-vault-secret
+  labels:
+    #app.kubernetes.io/instance: kajabi-products
+    #app.kubernetes.io/name: kajabi-app-worker
+    #base-worker: "true"
+    #workload-type: worker
+    component: anycable-rpc
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      #app.kubernetes.io/name: kajabi-app-worker
+      component: anycable-rpc
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+  template:
+    metadata:
+      annotations:
+        #ad.datadoghq.com/tags: '{"appname": "kajabi-storefronts-development"}'
+        vault.hashicorp.com/agent-image: 937028213865.dkr.ecr.us-east-1.amazonaws.com/kajabiprodeng/vault-kubectl:1.9.0
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-command-app: patch_kubernetes_secret.sh reloader-vault-secret
+          /vault/secrets/app
+        vault.hashicorp.com/agent-inject-command-overrides: patch_kubernetes_secret.sh
+          reloader-vault-secret /vault/overrides/overrides
+        vault.hashicorp.com/agent-inject-secret-app: kajabi-products/secrets/app-development
+        vault.hashicorp.com/agent-inject-secret-overrides: kajabi-products/overrides/app-development
+        vault.hashicorp.com/agent-inject-status: update
+        vault.hashicorp.com/agent-inject-template-app: |
+          {{ with secret "kajabi-products/secrets/app-development" }}
+          {{ range $k, $v := .Data.data }}
+          export {{ $k }}="{{ $v }}"
+          {{ end }}
+          {{ end }}
+        vault.hashicorp.com/agent-inject-template-overrides: |
+          {{ with secret "kajabi-products/overrides/app-development" }}
+          {{ range $k, $v := .Data.data }}
+          export {{ $k }}="{{ $v }}"
+          {{ end }}
+          {{ end }}
+        vault.hashicorp.com/agent-run-as-group: "1000"
+        vault.hashicorp.com/agent-run-as-user: "1000"
+        vault.hashicorp.com/role: kajabi-products-role
+        vault.hashicorp.com/secret-volume-path-overrides: /vault/overrides
+        vault.hashicorp.com/service: https://vault.development.kajabi.farm
+        vault.hashicorp.com/template-static-secret-render-interval: 90s
+      labels:
+        component: anycable-rpc
+        admission.datadoghq.com/enabled: "false"
+        #tags.datadoghq.com/service: kajabi-storefronts-development
+        #app.kubernetes.io/name: kajabi-app-worker
+        #proctype: worker
+    spec:
+      containers:
+        - name: anycable-rpc
+          #image: 937028213865.dkr.ecr.us-east-1.amazonaws.com/kajabi-base:9f045d28f36498a1befe8fba0dc986498e969832
+          #image: 937028213865.dkr.ecr.us-east-1.amazonaws.com/kajabi-base:62a4100d3f698f7c6e66d4d48bae706570dd8bdd
+          image: 937028213865.dkr.ecr.us-east-1.amazonaws.com/kajabi-base:ff30a151a9fcbc2a3e2b3e6f043d6e3f3573578b
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -c
+            # - sleep
+            # - "36000"
+          args:
+            - /kubernetes_init bundle exec anycable --rpc-host=0.0.0.0:50051
+          env:
+            # XXX These are populated from vault agent; do not provision.
+            #     For testing only
+            # - name: STAKATER_RELOADER_VAULT_SECRET_SECRET
+            #   value: CHANGEME
+            # - name: ANYCABLE_REDIS_URL
+            #   value: CHANGEME
+            # - name: ACTION_CABLE_ADAPTER
+            #   value: any_cable
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: vault-agent-injector
+      serviceAccountName: vault-agent-injector
+      terminationGracePeriodSeconds: 30

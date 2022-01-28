@@ -5,6 +5,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "anycableGo.fullname" $ }}
+
+  # TODO(brc/sdh) #############################################################
+  annotations:
+    secret.reloader.stakater.com/reload: reloader-vault-secret
+  #############################################################################
+
   labels:
     app: {{ template "anycableGo.name" $ }}
     component: anycable-go
@@ -37,8 +43,45 @@ spec:
         heritage: {{ $.Release.Service | quote }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/env-secret.yml") $ | sha256sum }}
+
+        # TODO(brc/sdh) ########################################################
+        vault.hashicorp.com/agent-image: 937028213865.dkr.ecr.us-east-1.amazonaws.com/kajabiprodeng/vault-kubectl:1.9.0
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-command-app: >
+          patch_kubernetes_secret.sh reloader-vault-secret
+          /vault/secrets/app
+        vault.hashicorp.com/agent-inject-command-overrides: >
+          patch_kubernetes_secret.sh reloader-vault-secret
+          /vault/overrides/overrides
+        vault.hashicorp.com/agent-inject-secret-app: kajabi-products/secrets/app-development
+        vault.hashicorp.com/agent-inject-secret-overrides: kajabi-products/overrides/app-development
+        vault.hashicorp.com/agent-inject-status: update
+        vault.hashicorp.com/agent-inject-template-app: |
+          {{ with secret "kajabi-products/secrets/app-development" }}
+          {{ range $k, $v := .Data.data }}
+          export {{ $k }}="{{ $v }}"
+          {{ end }}
+          {{ end }}
+        vault.hashicorp.com/agent-inject-template-overrides: |
+          {{ with secret "kajabi-products/overrides/app-development" }}
+          {{ range $k, $v := .Data.data }}
+          export {{ $k }}="{{ $v }}"
+          {{ end }}
+          {{ end }}
+        vault.hashicorp.com/agent-run-as-group: "1000"
+        vault.hashicorp.com/agent-run-as-user: "1000"
+        vault.hashicorp.com/role: kajabi-products-role
+        vault.hashicorp.com/secret-volume-path-overrides: /vault/overrides
+        vault.hashicorp.com/service: https://vault.development.kajabi.farm
+        vault.hashicorp.com/template-static-secret-render-interval: 90s
+        ########################################################################
+
       name: {{ $.Release.Name | quote }}
     spec:
+      # TODO(brc/sdh) ######################################################
+      serviceAccountName: vault-agent-injector
+      ######################################################################
+
       {{- if .nodeSelector }}
       nodeSelector: {{ toYaml .nodeSelector | nindent 8 }}
       {{- end }}
@@ -58,6 +101,7 @@ spec:
       {{- end }}
       containers:
         - name: anycable-go
+
           {{- with .env }}
           ports:
             - name: http
