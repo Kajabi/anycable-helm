@@ -57,11 +57,11 @@ spec:
         vault.hashicorp.com/agent-inject-secret-overrides: kajabi-products/overrides/app-development
         vault.hashicorp.com/agent-inject-status: update
         vault.hashicorp.com/agent-inject-template-app: |
-          {{`{{ with secret "kajabi-products/secrets/app-development" }}
-          {{ range $k, $v := .Data.data }}
-          export {{ $k }}="{{ $v }}"
-          {{ end }}
-          {{ end }}`}}
+          {{`{{ with secret "kajabi-products/secrets/app-development" }}`}}
+          {{`{{ range $k, $v := .Data.data }}`}}
+          {{`export {{ $k }}="{{ $v }}"`}}
+          {{`{{ end }}`}}
+          {{`{{ end }}`}}
         vault.hashicorp.com/agent-inject-template-overrides: |
           {{ with secret "kajabi-products/overrides/app-development" }}
           {{ range $k, $v := .Data.data }}
