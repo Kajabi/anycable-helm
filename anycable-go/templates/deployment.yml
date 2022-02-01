@@ -102,6 +102,18 @@ spec:
       containers:
         - name: anycable-go
 
+          # TODO(brc/sdh) ######################################################
+          command:
+            - /bin/sh
+          args:
+            - "-c"
+            - |
+              "for f in $(find /vault/secrets /vault/overrides -type f); do
+                  source $f;
+              done;
+              /usr/local/bin/anycable-go"
+          ######################################################################
+
           {{- with .env }}
           ports:
             - name: http
