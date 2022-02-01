@@ -108,10 +108,10 @@ spec:
           args:
             - "-c"
             - |
-              "for f in $(find /vault/secrets /vault/overrides -type f); do
-                  source $f;
+              for f in $(find /vault/secrets /vault/overrides -type f); do
+                  source \$f;
               done;
-              /usr/local/bin/anycable-go"
+              /usr/local/bin/anycable-go
           ######################################################################
 
           {{- with .env }}
