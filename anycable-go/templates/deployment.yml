@@ -108,9 +108,23 @@ spec:
           args:
             - "-c"
             - |
+              # Mimic /kubernetes_init to get Vault secrets
+              # (we really just need $REDIS_URL)
               for f in $(find /vault/secrets /vault/overrides -type f); do
                   source $f;
               done;
+
+              # FIXME Either populate vault with $ANYCABLE_REDIS_URL set to the right value (the FQDN of the
+              #       elasticache primary endpoint) or, better yet, correct $REDIS_URL to use the proper name.
+              #
+              # ( If you wanted to perputate the PoC hack below, you'd have to do something like use a
+              #   switch statement to detect which environment $REDIS_URL is current using and then
+              #   substitute a valid name accordingly. )
+              #
+              # Anycable-go v0.6.5 requires SSL verification; use the right hostname (the one in the TLS cert).
+              #
+              export REDIS_URL="$(echo $REDIS_URL |sed 's/kajabi-application-redis-development\.us-east-1\.kajabi\.sandbox/master.kajabi-application-redis-development.zcbft0.use1.cache.amazonaws.com/')"
+
               /usr/local/bin/anycable-go
           ######################################################################
 
